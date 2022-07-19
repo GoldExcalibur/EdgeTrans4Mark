@@ -1,0 +1,142 @@
+GPUS: '0'
+DATA_DIR: ''
+OUTPUT_DIR: ''
+LOG_DIR: ''
+WORKERS: 4
+
+DATASET:
+  DATASET: 'cepha'
+  ROOT: ''
+  TRAIN_SET: 'RawImage/TrainingData'
+  TRAIN_ANN: 'anno/coco_image_bbox/train_average_150.json'
+  TRAIN_SUBDIR: '' 
+  VAL_SET: 'RawImage/Test1Data'
+  VAL_ANN: 'anno/coco_image_bbox/test1_average_150.json'
+  TEST_SET: "RawImage/TestData"
+  TEST_ANN: "anno/coco_image_bbox/test_average_250.json"
+  ROT_FACTOR: 15
+  SCALE_FACTOR: 0.25
+  EXPAND_RATIO: 1.0
+  FLIP: false
+  AUG_TYPE: 'affine'
+TRANSFORMER:
+  DIM_MODEL: 64
+  DROPOUT: 0.1
+  NHEAD: 2
+  NUM_ENCODER_LAYERS: 2 
+MODEL:
+  NAME: 
+  - 'hrnet'
+  - 'attnfuse'
+  IN_CHANNEL: 3
+  PRETRAINED: ''
+  IMAGE_SIZE:
+  - 256
+  - 320
+  NUM_JOINTS: 19
+  NUM_FEAT: 64
+  EXTRA:
+    TARGET_TYPE: 'gaussian'
+    HEATMAP_SIZE:
+    - 64
+    - 80
+    SIGMA: 3
+    PRETRAINED_LAYERS:
+    - 'conv1'
+    - 'bn1'
+    - 'conv2'
+    - 'bn2'
+    - 'layer1'
+    - 'transition1'
+    - 'stage2'
+    - 'transition2'
+    - 'stage3'
+    - 'transition3'
+    - 'stage4'
+    FINAL_CONV_KERNEL: 1
+    STAGE2:
+      NUM_MODULES: 1
+      NUM_BRANCHES: 2
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 18
+      - 36
+      FUSE_METHOD: SUM
+    STAGE3:
+      NUM_MODULES: 4
+      NUM_BRANCHES: 3
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 18
+      - 36
+      - 72
+      FUSE_METHOD: SUM
+    STAGE4:
+      NUM_MODULES: 3
+      NUM_BRANCHES: 4
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 18
+      - 36
+      - 72
+      - 144
+      FUSE_METHOD: SUM
+LOSS:
+  USE_TARGET_WEIGHT: true
+  REC_GLOBAL: 'l1'
+  REC_LOCAL: 'esim'
+  SMOOTH: 'egrad'
+  RAMP_LEN: 350
+  TEMPERATURE: 0.1
+TRAIN:
+  BATCH_SIZE: 10 
+  SHUFFLE: true
+  BEGIN_EPOCH: 0
+  END_EPOCH: 750
+  RESUME: false
+  OPTIMIZER: 'adam'
+  SCHEDULER: 'lambda' # self-defined lr decay
+  # LR hyper params
+  LR: 0.0001
+  # other hyper params (weight decay)
+  WD: 0.0001
+  GAMMA1: 0.99
+  GAMMA2: 0.0
+  MOMENTUM: 0.9
+  NESTEROV: false
+  # hyper params for learned transform
+  DO_GLOBAL: true
+  GLOBAL_TYPE: 'affine'
+  LOCAL_ITER: 2
+  ENABLE_PTS_EPOCH: 200
+  EMA_ALPHA: 0.9 # 0.99 for pseudo labeler
+TEST:
+  BATCH_SIZE: 30
+  FLIP_TEST: false
+  SHIFT_HEATMAP: false
+  POST_PROCESS: false
+  LOCAL_ITER: 2 
+DEBUG:
+  DEBUG: true
+  SAVE_BATCH_IMAGES_GT: true
+  SAVE_BATCH_IMAGES_PRED: true
+  SAVE_HEATMAPS_GT: true
+  SAVE_HEATMAPS_PRED: true
+  VIS_ALL_IMAGES_PRED_GT: false
+
+
+
+
+
