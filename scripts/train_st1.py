@@ -35,7 +35,7 @@ import dataset
 import models
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Landmark Bert Model')
+    parser = argparse.ArgumentParser(description='stage I training: unsupervised registration')
     # general
     parser.add_argument('--cfg', help='experiment configure file name', required=True, type=str)
     args, rest = parser.parse_known_args()
@@ -64,7 +64,7 @@ def _make_model(cfg, is_train=True):
     backbone = eval(f'models.Backbones.{bb_name}.get_backbone')(\
         cfg, is_train, collect_feat=False)
     models_dict['backbone'] = backbone
-    ### Bert model #######################
+    ### Attn model #######################
     fuse_model = eval(f'models.{fuse_name}.get_net')(cfg)
     models_dict['fuse'] = fuse_model
     ### copy model files #################

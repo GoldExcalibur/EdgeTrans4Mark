@@ -30,7 +30,7 @@ pip install requirements.txt
 - Step1: unsupervised edge-guided transform learning
 ```py
 python scripts/train_st1.py \
---cfg experiments/cephalometric/isbi_150_320x256_labert.yaml \
+--cfg experiments/cephalometric/train_st1.yaml \
 --gpus {GPUS}
 ```
 

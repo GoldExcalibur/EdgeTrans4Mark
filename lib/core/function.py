@@ -30,37 +30,6 @@ from einops import rearrange
 
 logger = logging.getLogger(__name__)
 
-def check_params(models_dict):
-    for k, model in models_dict.items():
-        nan_info = ''
-        for (name, params) in model.named_parameters():
-            nan_mask = torch.isnan(params)
-            nan_ratio = float(nan_mask.sum())/params.numel()
-            if nan_ratio: nan_info +='{}_{} nan ratio: {:.3f}'.format(k, name, nan_ratio)
-        print(k, nan_info)
-
-def save_example(img_list, pts_list, trans, imgid, bid, save_dir, gts_list=[], attn_list=[], flow_list=[]):
-    img_npy = np.array([i[bid].cpu().numpy() for i in img_list], dtype=np.float32)
-    pts_npy = np.array([p[bid].cpu().numpy() for p in pts_list], dtype=np.float32)
-    trans_npy = trans[bid].cpu().numpy().astype(np.float32)
-    imgid = int(imgid[bid].item())
-
-    save_dict = {'img': img_npy, 'pts': pts_npy, 'trans': trans_npy, 'imgid': imgid}
-    if gts_list is not None:
-        gts_npy = np.array([g[bid].cpu().numpy() for g in gts_list], dtype=np.float32)
-        save_dict['gts'] = gts_npy 
-
-    if attn_list is not None:
-        attn_npys = [attn[bid].cpu().numpy().astype(np.float32) for attn in attn_list]
-        save_dict['attn'] = attn_npys
-
-    if flow_list is not None:
-        flow_npy = np.array([f[bid].cpu().numpy() for f in flow_list], dtype=np.float32)
-        save_dict['flow'] = flow_npy
-
-    with open(join(save_dir, 'showcase_{}.pickle'.format(imgid)), 'wb') as f:
-        pickle.dump(save_dict, f)
-
 ############## PERF_INDICATOR: AP ###########################################
 def train(config, train_loader, models_dict, loss_dict, optimizer, epoch, \
     output_dir, tb_log_dir, writer_dict, perf_name):
@@ -87,9 +56,9 @@ def train(config, train_loader, models_dict, loss_dict, optimizer, epoch, \
         input = input.cuda()
         verbose_flag = True if i == 0 else False
         if isinstance(config.MODEL.NAME, list):
-            if 'labert' in config.MODEL.NAME[-1]:
+            if 'fuse' in config.MODEL.NAME[-1]:
                 feats = models_dict['spen'](input)
-                output = models_dict['bert'](feats, verbose_flag)
+                output = models_dict['fuse'](feats, verbose_flag)
         else:
             output = models_dict['spen'](input)
         target = target.cuda(non_blocking=True)
@@ -197,9 +166,9 @@ def validate(config, val_loader, val_dataset, models_dict, loss_dict, output_dir
             # input = input.cuda()
             verbose_flag = True if i == 0 else False
             if isinstance(config.MODEL.NAME, list):
-                if 'labert' in config.MODEL.NAME[-1]:
+                if 'fuse' in config.MODEL.NAME[-1]:
                     feats = models_dict['spen'](input)
-                    output = models_dict['bert'](feats, verbose_flag)
+                    output = models_dict['fuse'](feats, verbose_flag)
             else:
                 output = models_dict['spen'](input)
 
@@ -209,9 +178,9 @@ def validate(config, val_loader, val_dataset, models_dict, loss_dict, output_dir
                 input_flipped = np.flip(input.cpu().numpy(), 3).copy()
                 input_flipped = torch.from_numpy(input_flipped).cuda()
                 if isinstance(config.MODEL.NAME, list):
-                    if 'labert' in config.MODEL.NAME[-1]:
+                    if 'fuse' in config.MODEL.NAME[-1]:
                         feats_flipped = models_dict['spen'](input_flipped)
-                        output_flipped = models_dict['bert'](feats_flipped, verbose_flag)
+                        output_flipped = models_dict['fuse'](feats_flipped, verbose_flag)
                 else:
                     output_flipped = models_dict['spen'](input_flipped)
                 output_flipped = flip_back(output_flipped.cpu().numpy(), flip_pairs)
@@ -269,20 +238,6 @@ def validate(config, val_loader, val_dataset, models_dict, loss_dict, output_dir
             # image_path.extend(meta['image'])
             image_ids.extend(meta['image_id'].numpy())
             idx += num_images
-
-            ### save visualize example ##
-            # head: (1,10), (6,5), 
-            # chest: (2,9), (2,11)
-            # hand: (2,0), (6,6),（15,1), (13,5)
-            #############################
-            # if i == 1: 
-            #     mean_tensor = torch.tensor([.485, .456, .406], device=input.device)
-            #     std_tensor = torch.tensor([.229, .224, .225], device=input.device)
-            #     save_example(
-            #     [input * std_tensor.view(1, -1, 1, 1) + mean_tensor.view(1, -1, 1, 1)],
-            #     [torch.from_numpy(pred) * stride], 
-            #     10, output_dir, gts_list=[torch.from_numpy(tgt) * stride]
-            #     )
 
             if i % display_period == 0:
                 msg = 'Test: [{0}/{1}]\t' \
