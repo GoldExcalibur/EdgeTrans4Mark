@@ -1,15 +1,15 @@
 GPUS: '0'
-DATA_DIR: ''
-OUTPUT_DIR: ''
+DATA_DIR: 'data'
+OUTPUT_DIR: 'output'
 LOG_DIR: ''
 WORKERS: 4
 
 DATASET:
   DATASET: 'cepha'
-  ROOT: ''
+  ROOT: 'cephalometric'
   TRAIN_SET: 'RawImage/TrainingData'
   TRAIN_ANN: 'anno/coco_image_bbox/train_average_150.json'
-  TRAIN_SUBDIR: '' 
+  TRAIN_SUBDIR: 'oneshot_ids/train_1label_8.txt' 
   VAL_SET: 'RawImage/Test1Data'
   VAL_ANN: 'anno/coco_image_bbox/test1_average_150.json'
   TEST_SET: "RawImage/TestData"
@@ -29,7 +29,7 @@ MODEL:
   - 'hrnet'
   - 'attnfuse'
   IN_CHANNEL: 3
-  PRETRAINED: ''
+  PRETRAINED: 'pretrained_models/hrnetv2_w18_imagenet_pretrained.pth'
   IMAGE_SIZE:
   - 256
   - 320

@@ -1,0 +1,138 @@
+GPUS: '0'
+DATA_DIR: 'data'
+OUTPUT_DIR: 'output'
+LOG_DIR: ''
+WORKERS: 4
+
+DATASET:
+  DATASET: 'cepha'
+  ROOT: 'cephalometric'
+  TRAIN_SET: 'RawImage/TrainingData'
+  TRAIN_ANN: 'anno/pseudo/pseudo_label_best.json'
+  TRAIN_SUBDIR: 'oneshot_idss/train_1label_8.txt' 
+  VAL_SET: 'RawImage/Test1Data'
+  VAL_ANN: 'anno/coco/test1_average_150.json'
+  TEST_SET: 'RawImage/TestData'
+  TEST_ANN: 'anno/coco/test_average_250.json'
+  ROT_FACTOR: 15
+  SCALE_FACTOR: 0.25
+  EXPAND_RATIO: 1.25
+  FLIP: true
+MODEL:
+  NAME: 'hrnet_v2'
+  PRETRAINED: 'pretrained_models/hrnetv2_w18_imagenet_pretrained.pth'  
+  IMAGE_SIZE:
+  - 256
+  - 320
+  NUM_JOINTS: 19
+  EXTRA:
+    TARGET_TYPE: 'gaussian'
+    HEATMAP_SIZE:
+    - 64
+    - 80
+    SIGMA: 3 
+    PRETRAINED_LAYERS:
+    - 'conv1'
+    - 'bn1'
+    - 'conv2'
+    - 'bn2'
+    - 'layer1'
+    - 'transition1'
+    - 'stage2'
+    - 'transition2'
+    - 'stage3'
+    - 'transition3'
+    - 'stage4'
+    FINAL_CONV_KERNEL: 1
+    STAGE2:
+      NUM_MODULES: 1
+      NUM_BRANCHES: 2
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 18
+      - 36
+      FUSE_METHOD: SUM
+    STAGE3:
+      NUM_MODULES: 4
+      NUM_BRANCHES: 3
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 18
+      - 36
+      - 72
+      FUSE_METHOD: SUM
+    STAGE4:
+      NUM_MODULES: 3
+      NUM_BRANCHES: 4
+      BLOCK: BASIC
+      NUM_BLOCKS:
+      - 4
+      - 4
+      - 4
+      - 4
+      NUM_CHANNELS:
+      - 18
+      - 36
+      - 72
+      - 144
+      FUSE_METHOD: SUM
+LOSS:
+  USE_TARGET_WEIGHT: true
+  CONSIST_W: 1.0
+  COTEACH: true
+TRAIN:
+  BATCH_SIZE: 5 
+  SHUFFLE: true
+  BEGIN_EPOCH: 0
+  END_EPOCH: 100
+  RESUME: false
+  OPTIMIZER: 'adam'
+  SCHEDULER: 'lambda' 
+  # LR hyper params
+  LR: 0.001 #0.0005
+  LR_FACTOR: 0.1
+  # cosine hyper params 
+  MIN_LR: 0.00001
+  # step hyper params
+  STEP_SIZE: 100
+  # multistep hyper params
+  LR_STEP:
+  - 0.6
+  - 0.8 
+  # reduce hyper params
+  PATIENCE: 10
+  THRESHOLD: 0.001
+  # other hyper params (weight decay)
+  WD: 0.0001
+  GAMMA1: 0.99
+  GAMMA2: 0.0
+  MOMENTUM: 0.9
+  NESTEROV: false
+TEST:
+  BATCH_SIZE: 50 #25
+  USE_EMA: false
+  COCO_BBOX_FILE: '' # no hand detection result json, use gt bbox!
+  BBOX_THRE: 1.0
+  IMAGE_THRE: 0.0
+  IN_VIS_THRE: 0.2
+  MODEL_FILE: ''
+  NMS_THRE: 1.0
+  OKS_THRE: 0.9
+  USE_GT_BBOX: true
+  FLIP_TEST: false
+  POST_PROCESS: true
+  SHIFT_HEATMAP: true
+DEBUG:
+  DEBUG: true
+  SAVE_BATCH_IMAGES_GT: true
+  SAVE_BATCH_IMAGES_PRED: true
+  SAVE_HEATMAPS_GT: true
+  SAVE_HEATMAPS_PRED: true
+  VIS_ALL_IMAGES_PRED_GT: false

@@ -2,9 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
-import os
-from os.path import join, exists, isdir, isfile, dirname, abspath
+import argparse, os, sys 
+from os.path import join, exists, isdir, isfile, dirname, abspath, realpath
+this_dir = dirname(abspath(__file__))
+base_dir = dirname(this_dir)
+
 import pprint
 import shutil
 import copy
@@ -20,6 +22,7 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
+from pytorch_lightning import seed_everything 
 from tensorboardX import SummaryWriter
 
 import _init_paths
@@ -48,6 +51,7 @@ def parse_args():
     parser.add_argument('--workers', type=int, help='num of dataloader workers')
     parser.add_argument('--resume', type=str, default='', help='resume path')
     parser.add_argument('--perf_name', type=str, default='MRE', choices=['MRE', 'AP'], help='perf name for evaluate')
+    parser.add_argument('--seed', default=3407, type=int)
     args = parser.parse_args()
 
     return args
@@ -56,6 +60,10 @@ def reset_config(config, args):
     if args.gpus: config.GPUS = args.gpus
     if args.workers: config.WORKERS = args.workers
     if args.resume: config.RESUME = args.resume
+    config.DATA_DIR = join(base_dir, config.DATA_DIR)
+    config.OUTPUT_DIR = join(base_dir, config.OUTPUT_DIR)
+    config.DATASET.ROOT = join(config.DATA_DIR, config.DATASET.ROOT)
+
 
 def _make_model(cfg, is_train=True):
     bb_name, fuse_name = cfg.MODEL.NAME
@@ -74,7 +82,6 @@ def _make_model(cfg, is_train=True):
 
 def save_files(args, cfg, final_output_dir):
     pose_name, model_name = cfg.MODEL.NAME
-    this_dir = dirname(__file__)
     model_dir = join(this_dir, '../lib/models')
     core_dir = join(this_dir, '../lib/core')
     # copy files for backup
@@ -96,7 +103,7 @@ def _make_loss(cfg):
     hm_w, hm_h = cfg.MODEL.EXTRA.HEATMAP_SIZE
     # reconstruction loss 
     loss_dict['l1'] = WeightedL1Loss(size_average=True)
-    loss_dict['l2'] = WeightedL2Loss(size_average=True) #nn.MSELoss(reduction='mean')
+    loss_dict['l2'] = WeightedL2Loss(size_average=True) 
     loss_dict['sim'] = SSIM(im_channel, mode='ssim', reduction='mean')
     loss_dict['esim'] = EdgeSSIM(im_channel, (im_w, im_h), mode='ssim', reduction='mean')
     # smoothness loss 
@@ -152,7 +159,9 @@ def main():
     cudnn.benchmark = config.CUDNN.BENCHMARK
     torch.backends.cudnn.deterministic = config.CUDNN.DETERMINISTIC
     torch.backends.cudnn.enabled = config.CUDNN.ENABLED
-    os.environ['CUDA_VISIBLE_DEVICES'] = config.GPUS
+    seed_everything(args.seed)
+
+    # os.environ['CUDA_VISIBLE_DEVICES'] = config.GPUS
     logger.info('=> USING GPUS {}'.format(config.GPUS))
     
     models_dict = _make_model(config, is_train=True)

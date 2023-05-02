@@ -286,20 +286,35 @@ class HighResolutionNet(nn.Module):
         self.stage3, pre_stage_channels = self._make_stage(
             self.stage3_cfg, num_channels)
 
-        # self.stage4_cfg = extra['STAGE4']
-        # num_channels = self.stage4_cfg['NUM_CHANNELS']
-        # block = blocks_dict[self.stage4_cfg['BLOCK']]
-        # num_channels = [
-        #     num_channels[i] * block.expansion for i in range(len(num_channels))]
-        # self.transition3 = self._make_transition_layer(
-        #     pre_stage_channels, num_channels)
-        # self.stage4, pre_stage_channels = self._make_stage(
-        #     self.stage4_cfg, num_channels, multi_scale_output=True)
+        self.stage4_cfg = extra['STAGE4']
+        num_channels = self.stage4_cfg['NUM_CHANNELS']
+        block = blocks_dict[self.stage4_cfg['BLOCK']]
+        num_channels = [
+            num_channels[i] * block.expansion for i in range(len(num_channels))]
+        self.transition3 = self._make_transition_layer(
+            pre_stage_channels, num_channels)
+        self.stage4, pre_stage_channels = self._make_stage(
+            self.stage4_cfg, num_channels, multi_scale_output=True)
 
-        self.final_inp_channels = sum(pre_stage_channels)
-        
-        self.avgpool = nn.AdaptiveAvgPool2d(1) if 'pool' in kwargs else None
-      
+        final_inp_channels = sum(pre_stage_channels)
+
+        self.head = nn.Sequential(
+            nn.Conv2d(
+                in_channels=final_inp_channels,
+                out_channels=final_inp_channels,
+                kernel_size=1,
+                stride=1,
+                padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0),
+            BatchNorm2d(final_inp_channels, momentum=BN_MOMENTUM),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(
+                in_channels=final_inp_channels,
+                out_channels=config.MODEL.NUM_JOINTS,
+                kernel_size=extra.FINAL_CONV_KERNEL,
+                stride=1,
+                padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0)
+        )
+
     def _make_transition_layer(
             self, num_channels_pre_layer, num_channels_cur_layer):
         num_branches_cur = len(num_channels_cur_layer)
@@ -425,13 +440,27 @@ class HighResolutionNet(nn.Module):
             for y in y_list:
                 print(y.shape)
 
+        x_list = []
+        for i in range(self.stage4_cfg['NUM_BRANCHES']):
+            if self.transition3[i] is not None:
+                x_list.append(self.transition3[i](y_list[-1]))
+            else:
+                x_list.append(y_list[i])
+        y_list = self.stage4(x_list)
+        if collect_feat:
+            image_feat.append(y_list[0])
+        if verbose:
+            print('shape after stage 4')
+            for y in y_list:
+                print(y.shape)
+
+        # Head Part
         height, width = y_list[0].size(2), y_list[0].size(3)
         x1 = F.interpolate(y_list[1], size=(height, width), mode='bilinear', align_corners=False)
         x2 = F.interpolate(y_list[2], size=(height, width), mode='bilinear', align_corners=False)
-        x = torch.cat([y_list[0], x1, x2], 1)
-
-        if self.avgpool is not None:
-            x = self.avgpool(x)[..., 0, 0]
+        x3 = F.interpolate(y_list[3], size=(height, width), mode='bilinear', align_corners=False)
+        x = torch.cat([y_list[0], x1, x2, x3], 1)
+        x = self.head(x)
 
         if collect_feat:
             image_feat = torch.cat(image_feat, dim=1)
@@ -451,33 +480,16 @@ class HighResolutionNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
         if os.path.isfile(pretrained):
-            pretrained_dict = torch.load(pretrained)
+            pretrained_state = torch.load(pretrained)
             logger.info('=> loading pretrained model {}'.format(pretrained))
-            # model_dict = self.state_dict()
-            # pretrained_dict = {k: v for k, v in pretrained_dict.items()
-            #                    if k in model_dict.keys()}
-            # for k, _ in pretrained_dict.items():
-            #     logger.info(
-            #         '=> loading {} pretrained model {}'.format(k, pretrained))
-            # model_dict.update(pretrained_dict)
-            # self.load_state_dict(model_dict)
-            pretrained_w, _, _ = load_partial_weights(self, pretrained, cuda_avail=self.cuda_avail, logger=logger)
+            pretrained_w, _, _ = load_partial_weights(self, pretrained, logger=logger, \
+                pretrained_state=pretrained_state, cuda_avail=self.cuda_avail)
         elif pretrained:
             logger.error('=> please download pre-trained models first!')
             raise ValueError('{} is not exist!'.format(pretrained))
 
 def get_backbone(config, is_train, **kwargs):
-
     model = HighResolutionNet(config, **kwargs)
-    #     pretrained = config.MODEL.PRETRAINED if config.MODEL.INIT_WEIGHTS else ''
-    #     model.init_weights(pretrained=pretrained)
-
     if is_train and config.MODEL.INIT_WEIGHTS:
         model.init_weights(config.MODEL.PRETRAINED)
-
-    if 'detach' in kwargs:
-        if kwargs['detach'] == True:
-            for p in model.parameters():
-                p.detach_()
-            
     return model

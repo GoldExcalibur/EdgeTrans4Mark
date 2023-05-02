@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
-def train_c2teach(config, lab_loader, unlab_loader, models_dict, loss_dict, optimizer, epoch, 
+def train(config, lab_loader, unlab_loader, models_dict, loss_dict, optimizer, epoch, 
         output_dir, tb_log_dir, writer_dict, perf_name):
     batch_time = AverageMeter(); data_time = AverageMeter()
     losses = AverageMeterSet(); metrics = AverageMeterSet()
@@ -46,7 +46,7 @@ def train_c2teach(config, lab_loader, unlab_loader, models_dict, loss_dict, opti
     forget_rate = min(0.8, ramp(epoch, 30, 'linear')) if filter_flag else 0.0 
     logger.info('Current forget rate {:.3f}'.format(forget_rate))
 
-    w = ramp(epoch, 30, 'linear') * 0.3 # 0.0
+    w = ramp(epoch, 30, 'linear') * 0.3 
     w_noise, w_consist = 1.0, config.LOSS.CONSIST_W 
     for i, upack in enumerate(unlab_loader):
         try: lpack = lab_iter.next()
@@ -70,10 +70,10 @@ def train_c2teach(config, lab_loader, unlab_loader, models_dict, loss_dict, opti
         M_hm = torch.cat([lM_hm, uM_hm], dim=0).cuda()
 
         # backbone output heatmap 
-        out1 = models_dict['spen'](input)
-        out1_aug = models_dict['spen'](input_aug)
-        out2 = models_dict['spen2'](input)
-        out2_aug = models_dict['spen2'](input_aug)
+        out1 = models_dict['net1'](input)
+        out1_aug = models_dict['net1'](input_aug)
+        out2 = models_dict['net2'](input)
+        out2_aug = models_dict['net2'](input_aug)
         # clean lab loss 
         clean1 = loss_dict['heat'](out1_aug[:lsize], ltgt_aug, ltgt_w_aug) + \
             loss_dict['heat'](out1[:lsize], ltgt, ltgt_w)

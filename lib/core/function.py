@@ -57,10 +57,10 @@ def train(config, train_loader, models_dict, loss_dict, optimizer, epoch, \
         verbose_flag = True if i == 0 else False
         if isinstance(config.MODEL.NAME, list):
             if 'fuse' in config.MODEL.NAME[-1]:
-                feats = models_dict['spen'](input)
+                feats = models_dict['net1'](input)
                 output = models_dict['fuse'](feats, verbose_flag)
         else:
-            output = models_dict['spen'](input)
+            output = models_dict['net1'](input)
         target = target.cuda(non_blocking=True)
         target_weight = target_weight.cuda(non_blocking=True)
         loss = loss_dict['heat'](output, target, target_weight)
@@ -167,22 +167,20 @@ def validate(config, val_loader, val_dataset, models_dict, loss_dict, output_dir
             verbose_flag = True if i == 0 else False
             if isinstance(config.MODEL.NAME, list):
                 if 'fuse' in config.MODEL.NAME[-1]:
-                    feats = models_dict['spen'](input)
+                    feats = models_dict['net1'](input)
                     output = models_dict['fuse'](feats, verbose_flag)
             else:
-                output = models_dict['spen'](input)
+                output = models_dict['net1'](input)
 
             if config.TEST.FLIP_TEST:
-                # this part is ugly, because pytorch has not supported negative index
-                # input_flipped = model(input[:, :, :, ::-1])
                 input_flipped = np.flip(input.cpu().numpy(), 3).copy()
                 input_flipped = torch.from_numpy(input_flipped).cuda()
                 if isinstance(config.MODEL.NAME, list):
                     if 'fuse' in config.MODEL.NAME[-1]:
-                        feats_flipped = models_dict['spen'](input_flipped)
+                        feats_flipped = models_dict['net1'](input_flipped)
                         output_flipped = models_dict['fuse'](feats_flipped, verbose_flag)
                 else:
-                    output_flipped = models_dict['spen'](input_flipped)
+                    output_flipped = models_dict['net1'](input_flipped)
                 output_flipped = flip_back(output_flipped.cpu().numpy(), flip_pairs)
                 output_flipped = torch.from_numpy(output_flipped.copy()).cuda()
 

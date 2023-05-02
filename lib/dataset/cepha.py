@@ -25,12 +25,12 @@ class CEPHADataset(JointsDataset):
         self.expand_ratio = cfg.DATASET.EXPAND_RATIO
 
         if 'ann_file_path' in kwargs:
-            self.ann_file_path = join(cfg.DATASET.ROOT, kwargs['ann_file_path'])  
+            self.ann_file_path = join(self.root, kwargs['ann_file_path'])  
         else:
             if self.is_train:
-                self.ann_file_path = join(cfg.DATASET.ROOT, cfg.DATASET.TRAIN_ANN)
+                self.ann_file_path = join(self.root, cfg.DATASET.TRAIN_ANN)
             else:
-                self.ann_file_path = join(cfg.DATASET.ROOT, cfg.DATASET.TEST_ANN)
+                self.ann_file_path = join(self.root, cfg.DATASET.TEST_ANN)
 
         # add binary background mask
         if 'return_mask' in kwargs: self.return_mask = kwargs['return_mask']
@@ -50,7 +50,7 @@ class CEPHADataset(JointsDataset):
                                             for cls in self.classes[1:]])
 
         # load image file names
-        self.image_set_index = self._load_image_set_index(subdir)            
+        self.image_set_index = self._load_image_set_index(subdir)       
         self.num_images = len(self.image_set_index)
         logger.info('=> num_images: {}'.format(self.num_images))
 
@@ -79,7 +79,7 @@ class CEPHADataset(JointsDataset):
         if subdir_path is None or subdir_path == '':
             image_ids = self.coco.getImgIds()
         else:
-            with open(subdir_path, 'r') as f:
+            with open(join(self.root, subdir_path), 'r') as f:
                 subdirs = f.readlines()
                 image_ids = [int(i.strip()) for i in subdirs] 
             f.close()

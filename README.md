@@ -3,51 +3,43 @@ pytorch implementation of ECCV2022 "One-Shot Medical Landmark Localization by Ed
 ![Framework](./figures/eccv_2stage_scheme.png)
 
 ## Dataset
-- hand dataset: download from [IEEE ISBI2015 Challenge](http://www-o.ntust.edu.tw/~cweiwang/ISBI2015/challenge1)
-And prepare your data like this:
+Download image & annotations from [IEEE ISBI2015 Challenge](http://www-o.ntust.edu.tw/~cweiwang/ISBI2015/challenge1).
+Or use provided data copy [DATA COPY](https://pan.baidu.com/s/1b5N1nKciIonEj3sBEjLtEA)(file extraction code: xjvh) with converted coco format annotations. 
+Then place this dataset under /data folder.
 ```txt
-${CEPHA_ROOT}
-`-- RawImage
-    `-- TrainingData
-    `-- TestData1 
-    `-- TestData2
-`-- anno
-    |-- train_ann.json
-    |-- test1_ann.json 
-    |-- test2_ann.json
-`-- semi
-    |-- oneshot_id.txt
+${ROOT}
+`-- data
+    `-- cephalometric
+`-- pretrained_models 
+    `-- hrnetv2_w18_imagenet_pretrained.pth
 ```
-
 
 ## Requirements
 ```py
-pip install requirements.txt
+conda create -n landmark python==3.6.3
+pip install -r requirements.txt
 ```
-  
+For torch and torchvision, you can find whl in [pytorch_whl](https://download.pytorch.org/whl/torch_stable.html/cu100) and pip install offline. 
 ## Training & Testing
-### Stage1
-- Step1: unsupervised edge-guided transform learning
+- train stage1 
 ```py
-python scripts/train_st1.py \
+CUDA_VISIBLE_DEVICES=0,1 python3 scripts/train_st1.py \
 --cfg experiments/cephalometric/train_st1.yaml \
---gpus {GPUS}
+--gpus 0,1 
 ```
 
-- Step2: infer pseudo landmarks for unlabeled data  
+- use stage1 model to infer label 
 ```py
-python scripts/valid_st1.py \
---model-file {model_path} \ 
---gpus {GPUS} --local-iter 4 --infer-train
+CUDA_VISIBLE_DEVICES=0 python3 scripts/test_st1.py \
+--model [BEST STAGE1 MODEL] \
+--cfg experiments/cephalometric/train_st1.yaml \
+--gpus 0 --local-iter 4 --infer-train 
 ```
-where {model_path} denotes the trained model in step1.
 
-### Stage2: Retraining with noise-filtering and semi-supervised learning 
-- Step3: train a new detector with one-shot gt & inferred labels
+- train stage2 
 ```py
-python scripts/train_st2.py \
---cfg experiments/cephalometric/isbi_150_320x256_retrain_crop_ssl.yaml \
---gpus {GPUS} --method c2teach
+CUDA_VISIBLE_DEVICES=0,1 python3 scripts/train_st2.py \  --cfg experiments/cephalometric/train_st2.yaml \
+--gpus 0,1 
 ```
 
 ## Acknowledgements 

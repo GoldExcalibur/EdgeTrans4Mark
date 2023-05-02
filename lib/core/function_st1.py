@@ -455,3 +455,4 @@ def validate(config, exemplar_loader, val_loader, val_dataset, models_dict, loss
         writer.add_scalars('valid', dict(name_values), global_steps)
     writer_dict['valid_global_steps'] = global_steps + 1
     return perf_indicator
+

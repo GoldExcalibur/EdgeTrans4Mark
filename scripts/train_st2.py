@@ -2,9 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
-import os
+import argparse, os, sys
 from os.path import dirname, abspath, join, isdir, exists
+this_dir = dirname(abspath(__file__))
+base_dir = dirname(this_dir)
+
 import pprint
 import shutil
 
@@ -16,13 +18,14 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
+from pytorch_lightning import seed_everything 
 from tensorboardX import SummaryWriter
 
 import _init_paths
 from core.config import config, update_config, update_dir, get_model_name
 from core.loss import JointsMSELoss
 from core.function import validate
-from core.function_st2 import train_c2teach
+from core.function_st2 import train
 from utils.utils import get_optimizer, get_scheduler
 from utils.utils import save_checkpoint
 from utils.utils import create_logger, load_partial_weights
@@ -47,8 +50,8 @@ def parse_args():
     parser.add_argument('--gpus', type=str, help='gpus')
     parser.add_argument('--workers', type=int, help='num of dataloader workers')
     parser.add_argument('--resume', help='resume path', type=str, default='')
-    parser.add_argument('--method', required=True, type=str, help='ssl or lnl method')
     parser.add_argument('--perf_name', type=str, default='MRE', choices=['MRE', 'AP'], help='perf name for evaluate')
+    parser.add_argument('--seed', default=3407, type=int)
     args = parser.parse_args()
 
     return args
@@ -58,24 +61,27 @@ def reset_config(config, args):
     if args.gpus: config.GPUS = args.gpus
     if args.workers: config.WORKERS = args.workers
     if args.resume: config.RESUME = args.resume
-    if args.method: config.METHOD = args.method
+    config.DATA_DIR = join(base_dir, config.DATA_DIR)
+    config.OUTPUT_DIR = join(base_dir, config.OUTPUT_DIR)
+    config.DATASET.ROOT = join(config.DATA_DIR, config.DATASET.ROOT)
 
 def _make_model(cfg, final_output_dir, is_train):
     name = cfg.MODEL.NAME 
     models_dict = {}
-    models_dict['spen'] = eval(f'models.{name}.get_pose_net')(cfg, is_train=True)
-    models_dict['spen2'] = eval(f'models.{name}.get_pose_net')(cfg, is_train=True)    
-    for k,v in models_dict.items(): models_dict[k] = torch.nn.DataParallel(v).cuda()
+    models_dict['net1'] = eval(f'models.Backbones.{name}.get_backbone')(cfg, is_train=True)
+    models_dict['net2'] = eval(f'models.Backbones.{name}.get_backbone')(cfg, is_train=True)    
+    for k,v in models_dict.items(): 
+        models_dict[k] = torch.nn.DataParallel(v).cuda()
     return models_dict
 
 def save_files(args, cfg, final_output_dir):
-    save_file_names = [cfg.MODEL.NAME]
     this_dir = dirname(__file__)
     model_dir = join(this_dir, '../lib/models')
     core_dir = join(this_dir, '../lib/core')
     # copy files under model dir 
-    for n in save_file_names:
-        shutil.copy2(join(model_dir, '{}.py'.format(n)), final_output_dir)
+    for fname in ['Backbones/hrnet.py']:
+        fpath = join(model_dir, fname)
+        shutil.copy2(fpath, final_output_dir)
     # copy other files 
     for fpath in [args.cfg, abspath(__file__), join(core_dir, 'function.py'),
         join(core_dir, 'function_st2.py')]:
@@ -223,7 +229,7 @@ def main():
         writer_dict['writer'].add_scalar('lr', cur_lr, epoch)
         
         # train for one epoch
-        eval(f'train_{config.METHOD}')(config, lab_train_loader, unlab_train_loader, models_dict, 
+        train(config, lab_train_loader, unlab_train_loader, models_dict, 
             loss_dict, optimizer, epoch, final_output_dir, tb_log_dir, writer_dict, perf_name)
 
         # evaluate on validation set
